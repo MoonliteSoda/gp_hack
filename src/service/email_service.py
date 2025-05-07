@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from dao.base import with_db_session
 from service.models.email_data import EmailData
 
 from utils.logger import get_logger
@@ -17,6 +18,7 @@ class EmailService:
         self.smtp_username = CONFIG.email.smtp_username
         self.smtp_password = CONFIG.email.smtp_password
         self.sender_email = CONFIG.email.sender_email # TODO сделать закрытой переменой
+
 
     async def send_email(self,
                          email_data: EmailData) -> bool:
