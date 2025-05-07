@@ -1,0 +1,36 @@
+profile: dev
+
+server_host: 0.0.0.0
+server_rest_port: 5000
+
+email:
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  smtp_username: gerbylev.oleg@gmail.com
+  smtp_password: xpln qelf kjos pspd
+  sender_email: gerbylev.oleg@gmail.com
+
+#db:
+#  host:
+#  port:
+#  database:
+#  username:
+#  password:
+#  migrations: ./migrations
+
+logging:
+  app_name: cc-gate
+  graylog:
+    enabled: false
+    host: localhost
+    port: 12201
+    udp: true
+  console:
+    enabled: true
+  root_level: INFO
+  levels:
+    httpx: WARN
+    openai: WARN
+    uvicorn.access: WARN
+    VastController: DEBUG
+
