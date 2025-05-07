@@ -1,7 +1,4 @@
 from rest.models.user_data import UserData
-from service.email_service import EmailService
-from service.models.email_data import EmailData
-from templates.email_template import EmailTemplates
 from utils.logger import get_logger
 
 log = get_logger("AuthService")
@@ -10,12 +7,12 @@ log = get_logger("AuthService")
 class AuthService:
 
     def __init__(self):
-        self.email_service = EmailService()
         pass
 
     # @with_async_db_session
     async def register_user(self, user_data: UserData):
-        await self.email_service.send_email(EmailData(recipients = [user_data.email], subject = "Специально для Артура", message = "Вы отправили регистрацию в лучший сервис", template = EmailTemplates.DEFAULT_MESSAGE))
+        pass
+        # await self.email_service.send_email(EmailData(recipients = [user_data.email], subject = "Специально для Артура", message = "Вы отправили регистрацию в лучший сервис", template = EmailTemplates.DEFAULT_MESSAGE))
         # existing_account = await self._get_account_by_email(user_data.email)
         # if existing_account:
         #     log.warning(f"User with email {user_data.email} already exists")

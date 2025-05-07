@@ -28,29 +28,31 @@ async def register(user_data: UserData, auth_service: AuthService = Depends()):
     return None
 
 
-# @router.post(
-#     "/api/auth/login",
-#     responses={
-#         200: {"model": TokenData, "description": "Successful response"},
-#     },
-#     tags=["Auth"],
-#     response_model_by_alias=True,
-# )
-# async def login(login_data: LoginData, auth_service: AuthService = Depends()) -> TokenData:
-#     log.info("Login request received")
-#     result = await auth_service.login(login_data)
-#     log.info("Login request processed successfully")
-#     return result
-#
-#
-# @router.get(
-#     "/api/auth/me",
-#     responses={
-#         200: {"model": UserResponseData, "description": "Successful response"},
-#     },
-#     tags=["Auth"],
-#     response_model_by_alias=True,
-# )
-# async def get_current_user(current_user: UserData = Depends(AuthService.get_current_user)) -> UserResponseData:
-#     log.info(f"Get current user request for {current_user.email}")
-#     return UserResponseData(email=current_user.email, name=current_user.name)
+@router.post(
+    "/api/auth/login",
+    responses={
+        200: {"model": TokenData, "description": "Successful response"},
+    },
+    tags=["Auth"],
+    response_model_by_alias=True,
+)
+async def login(login_data: LoginData, auth_service: AuthService = Depends()) -> TokenData:
+    pass
+    # log.info("Login request received")
+    # result = await auth_service.login(login_data)
+    # log.info("Login request processed successfully")
+    # return result
+
+
+@router.get(
+    "/api/auth/me",
+    responses={
+        200: {"model": UserResponseData, "description": "Successful response"},
+    },
+    tags=["Auth"],
+    response_model_by_alias=True,
+)
+async def get_current_user(current_user: UserData = Depends()) -> UserResponseData:
+    pass
+    # log.info(f"Get current user request for {current_user.email}")
+    # return UserResponseData(email=current_user.email, name=current_user.name)

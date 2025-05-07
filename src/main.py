@@ -28,16 +28,15 @@ class Main:
     def __create_services(self):
         # self.app.dependency_overrides[AuthService] = lambda: TestAuth() # TODO сделать по красоте, а вообще тут можно менять базовое поведение
         ...
-        # Registry
 
     def start(self):
         signal.signal(signal.SIGINT, self.handle_shutdown)
         signal.signal(signal.SIGTERM, self.handle_shutdown)
 
-        # print("Checking db ...")
-        # self.wait_for_postgres()
-        # print("Execute db migrations ...")
-        # self.run_migrations()
+        print("Checking db ...")
+        self.wait_for_postgres()
+        print("Execute db migrations ...")
+        self.run_migrations()
 
         self.start_event_loop()
 
@@ -87,20 +86,20 @@ class Main:
     def wait_for_postgres():
         start_time = time.time()
         while True:
-            # try:
+            try:
                 conn = psycopg2.connect(
                     host=CONFIG.db.host, port=CONFIG.db.port, user=CONFIG.db.username, password=CONFIG.db.password,
-                    database=None
+                    database=CONFIG.db.database
                 )
                 conn.close()
                 break
-            # except psycopg2.OperationalError as err:
-            #     elapsed_time = time.time() - start_time
-            #     if elapsed_time > 60:
-            #         raise TimeoutError("Cannot connect to postgres DB") from err
-            #
-            #     print("Connecting to postgres ...")
-            #     time.sleep(1)
+            except psycopg2.OperationalError as err:
+                elapsed_time = time.time() - start_time
+                if elapsed_time > 60:
+                    raise TimeoutError("Cannot connect to postgres DB") from err
+
+                print("Connecting to postgres ...")
+                time.sleep(1)
 
     @staticmethod
     def run_migrations():

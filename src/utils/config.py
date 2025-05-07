@@ -18,6 +18,20 @@ class GptConfig:
     token: str
     model: str
 
+@dataclass
+class S3Config:
+    url: str
+    login: str
+    password: str
+    bucket: str
+
+@dataclass
+class PandaConfig:
+    bootstrap_servers: list[str]
+    security_protocol: str
+    sasl_mechanism: str
+    sasl_plain_username: str
+    sasl_plain_password: str
 
 @dataclass
 class LoggingConfigGraylog:
@@ -57,13 +71,6 @@ class ConfigDB:
     migrations: str
 
 
-@dataclass
-class EmailConfig:
-    smtp_server: str
-    smtp_port: str
-    smtp_username: str
-    smtp_password: str
-    sender_email: str
 
 @dataclass
 class Config:
@@ -71,8 +78,9 @@ class Config:
     server_host: str
     server_rest_port: int
     logging: LoggingConfig
-    email: EmailConfig
-    # db: ConfigDB
+    s3: S3Config
+    panda: PandaConfig
+    db: ConfigDB
 
 
 class ConfigLoader:
