@@ -62,7 +62,7 @@ cat > "$ROOT/src/version-info.json" <<EOF
 }
 EOF
 
-IMAGE=registry.gitlab.com/nerd-team1/server/analytics-server
+IMAGE=registry.gitlab.com/tech-squad3/server:$BRANCH
 
 docker build . -t $IMAGE
 docker push $IMAGE

@@ -5,8 +5,8 @@ from rest.project_endpoint import router as ProjectRouter
 from rest.file_endpoint import router as FileRouter
 
 app = FastAPI(
-    title="nerd",
-    description="nerd",
+    title="HACK",
+    description="HACK",
     version="0.0.1",
 )
 

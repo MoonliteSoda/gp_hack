@@ -10,7 +10,7 @@ job_build:
 job_deploy:
   stage: deploy
   script:
-    - cd /opt/analytics_server/
+    - cd /opt/hack-server-prod/
     - docker compose pull
     - docker compose down
     - docker compose up -d
