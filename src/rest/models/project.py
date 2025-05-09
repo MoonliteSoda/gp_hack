@@ -7,13 +7,19 @@ class S3LinkData(BaseModel):
     url: str
     status: str
 
+class ProjectStatusType(str, Enum):
+    open = "open"
+    close = "close"
+
 
 class ProjectData(BaseModel):
     id: Optional[int] = None
     name: str
-    created_at: Optional[datetime] = None
-    s3_links: Optional[List[S3LinkData]] = None
+    created_at: datetime = None
+    status: ProjectStatusType
 
+class CreateProjectData(BaseModel):
+    name: str
 
 class ProjectListData(BaseModel):
     items: List[ProjectData]
