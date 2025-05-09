@@ -1,15 +1,20 @@
 from fastapi import APIRouter, Depends, Query
 from typing import List, Optional
+from utils.logger import get_logger
 
 from service.project_service import ProjectService
-from rest.models.project import ProjectData, ProjectListData
+from rest.models.project import ProjectData, ProjectListData, CreateProjectData
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
+log = get_logger("project_endpoint")
 
 
 @router.post("", response_model=ProjectData)
-async def create_project(project_data: ProjectData, service: ProjectService = Depends())-> ProjectData:
-    pass
+async def create_project(create_project_data: CreateProjectData, service: ProjectService = Depends()) -> ProjectData:
+    log.info(f"Creating project with data: {create_project_data}")
+    result = await service.create_project(create_project_data)
+    log.info(f"Project created: {result}")
+    return result
 
 
 @router.get("", response_model=ProjectListData)
@@ -18,21 +23,33 @@ async def get_all_projects(
     size: int = Query(20, ge=1, le=100),
     service: ProjectService = Depends(),
 ) -> ProjectListData:
-    pass
+    log.info(f"Getting all projects, page: {page}, size: {size}")
+    result = await service.get_all_projects(page, size)
+    log.info(f"Found {result.total} projects")
+    return result
 
 
 @router.get("/{project_id}", response_model=ProjectData)
 async def get_project(project_id: int, service: ProjectService = Depends()) -> ProjectData:
-    pass
+    log.info(f"Getting project with id: {project_id}")
+    result = await service.get_project(project_id)
+    log.info(f"Found project: {result}")
+    return result
 
 
 @router.delete("/{project_id}")
 async def delete_project(project_id: int, service: ProjectService = Depends()):
-    pass
+    log.info(f"Deleting project with id: {project_id}")
+    await service.delete_project(project_id)
+    log.info(f"Project {project_id} deleted")
+    return {"status": "success"}
 
 
 @router.put("/{project_id}/name", response_model=ProjectData)
 async def update_project_name(
-    project_id: int, project_data: ProjectData, service: ProjectService = Depends()
+    project_id: int, project_data: CreateProjectData, service: ProjectService = Depends()
 ) -> ProjectData:
-    pass
+    log.info(f"Updating project {project_id} name to: {project_data.name}")
+    result = await service.update_project_name(project_id, project_data.name)
+    log.info(f"Project updated: {result}")
+    return result
