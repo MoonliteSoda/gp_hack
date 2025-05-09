@@ -13,10 +13,10 @@ db:
   migrations: ./migrations
 
 s3:
-  url: http://94.154.128.76:9001/
-  login: recordings
-  password: xxAmwdlDfUv2b1ZGXiaQVViBllWI1PU0gpJ429nJ
-  bucket: train-data
+  url: http://94.154.128.76:9000/
+  login: minio-root
+  password: JustOleg1!
+  bucket: user-data
 
 panda:
   bootstrap_servers:

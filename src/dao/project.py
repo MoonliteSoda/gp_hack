@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy import Column, Integer, String, DateTime, Enum, func, select, delete, update
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from dao.base import Base, with_async_db_session, session_factory
 from rest.models.project import ProjectData, ProjectStatusType
@@ -13,6 +14,9 @@ class Project(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     status = Column(Enum(ProjectStatusType, name="project_status_type"), nullable=False, default=ProjectStatusType.open)
+    
+    # Relationship with ProjectFile
+    files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
 
     def to_api(self) -> ProjectData:
         return ProjectData(
@@ -39,17 +43,17 @@ class Project(Base):
     @with_async_db_session
     async def get_all_projects(page: int, size: int) -> Tuple[List["Project"], int]:
         session = session_factory.get_async()
-        
+
         # Get total count
         count_query = select(func.count()).select_from(Project)
         total = await session.scalar(count_query)
-        
+
         # Get paginated results
         offset = (page - 1) * size
         query = select(Project).order_by(Project.id).offset(offset).limit(size)
         result = await session.execute(query)
         projects = result.scalars().all()
-        
+
         return projects, total
 
     @staticmethod
@@ -72,12 +76,12 @@ class Project(Base):
     @with_async_db_session
     async def update_project_name(project_id: int, new_name: str) -> Optional["Project"]:
         session = session_factory.get_async()
-        
+
         # Update project name
         update_query = update(Project).where(Project.id == project_id).values(name=new_name)
         await session.execute(update_query)
         await session.commit()
-        
+
         # Get updated project
         query = select(Project).where(Project.id == project_id)
         result = await session.execute(query)

@@ -9,15 +9,11 @@ class YoloAnnotationData(BaseModel):
 
 
 class ProjectFileData(BaseModel):
-    id: Optional[int] = None
+    id: int
     project_id: int
     filename: str
-    file_path: str
-    file_size: int
-    mime_type: str
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    has_annotation: bool = False
+    s3_path: str
+    s3_url: str
 
 
 class ProjectFileListData(BaseModel):
