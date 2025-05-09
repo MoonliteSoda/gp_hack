@@ -9,7 +9,7 @@ db:
   port: 5432
   database: hack_server
   username: postgres
-  password: JustOleg1!
+  password: postgres
   migrations: ./migrations
 
 s3:
