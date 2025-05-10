@@ -6,10 +6,10 @@ server_rest_port: 5000
 
 db:
   host: 127.0.0.1
-  port: 5432
-  database: hack_server
-  username: postgres
-  password: postgres
+  port: 5433
+  database: gazprom
+  username: prod1
+  password: 1234
   migrations: ./migrations
 
 s3:
