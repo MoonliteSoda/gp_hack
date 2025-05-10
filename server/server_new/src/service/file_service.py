@@ -1,4 +1,0 @@
-
-
-class FileService:
-    pass

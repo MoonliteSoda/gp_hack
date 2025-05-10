@@ -1,7 +1,0 @@
-__init__
-dao
-main
-rest
-service
-starter
-utils
