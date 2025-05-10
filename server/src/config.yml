@@ -6,17 +6,17 @@ server_rest_port: 5000
 
 db:
   host: 127.0.0.1
-  port: 5433
-  database: gazprom
-  username: prod1
-  password: 1234
+  port: 5432
+  database: hack_server
+  username: postgres
+  password: postgres
   migrations: ./migrations
 
 s3:
-  url: http://94.154.128.76:9001/
-  login: recordings
-  password: xxAmwdlDfUv2b1ZGXiaQVViBllWI1PU0gpJ429nJ
-  bucket: train-data
+  url: http://94.154.128.76:9000/
+  login: minio-root
+  password: JustOleg1!
+  bucket: user-data
 
 panda:
   bootstrap_servers:
@@ -41,4 +41,3 @@ logging:
     openai: WARN
     uvicorn.access: WARN
     VastController: DEBUG
-
