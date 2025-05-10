@@ -3,13 +3,10 @@ import signal
 import threading
 from asyncio import AbstractEventLoop
 import time
-import os
 
-from pathlib import Path
 import uvicorn
 import psycopg2
 import yoyo
-from urllib.parse import quote_plus
 
 from rest import router_init
 from utils.config import CONFIG
@@ -104,34 +101,17 @@ class Main:
                 print("Connecting to postgres ...")
                 time.sleep(1)
 
-
     @staticmethod
     def run_migrations():
-        """
-        Применяет миграции из каталога /server/migrations/
-        """
-        try:
-            # Получаем абсолютный путь к папке server/migrations
-            current_file_path = Path(__file__)  # Путь к текущему файлу (src/main.py)
-            server_dir = current_file_path.parent.parent  # Поднимаемся в папку server
-            migrations_dir = server_dir / "migrations"
+        # Укажите здесь строку подключения к базе данных
+        db_url = f"postgresql://{CONFIG.db.username}:{CONFIG.db.password}@{CONFIG.db.host}:{CONFIG.db.port}/{CONFIG.db.database}"
 
+        # Получаем backend для работы с базой данных
+        backend = yoyo.get_backend(db_url)
 
-            # Формируем строку подключения (без экранирования пароля)
-            db_url = (
-                f"postgresql://{CONFIG.db.username}:{CONFIG.db.password}@"
-                f"{CONFIG.db.host}:{CONFIG.db.port}/{CONFIG.db.database}"
-            )
+        # Указываем путь к директории с миграциями
+        migrations = yoyo.read_migrations(CONFIG.db.migrations)
 
-            # Применяем миграции
-            backend = yoyo.get_backend(db_url)
-            migrations = yoyo.read_migrations(str(migrations_dir))
-
-            with backend.lock(timeout=60):
-                backend.apply_migrations(backend.to_apply(migrations))
-
-            print(f"Успешно применены миграции из: {migrations_dir}")
-
-        except Exception as e:
-            print(f" Ошибка миграции: {type(e).__name__}: {str(e)}")
-            raise
+        # Применяем миграции
+        with backend.lock():  # Захват блокировки на выполнение миграций
+            backend.apply_migrations(backend.to_apply(migrations))
