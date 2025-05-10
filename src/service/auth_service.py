@@ -1,22 +1,19 @@
-import secrets
-import string
 from datetime import datetime, timedelta
 from typing import Optional
 
-from jose import JWTError, jwt
-from sqlalchemy.future import select
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
+from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.future import select
 
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
 from rest.models.login_data import LoginData
 from rest.models.login_response import LoginResponse
-from utils.logger import get_logger
 from dao.account import Account, AccountStatus
 from dao.base import session_factory
-
+from utils.logger import get_logger
 
 
 log = get_logger("AuthService")
@@ -162,7 +159,7 @@ class AuthService:
             return None
 
 
-     def refresh_access_token(self, refresh_token: str) -> Optional[str]:
+    def refresh_access_token(self, refresh_token: str) -> Optional[str]:
         """Обновляет access token с помощью refresh token.
 
         Args:

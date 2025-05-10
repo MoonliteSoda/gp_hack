@@ -1,6 +1,3 @@
-from pyexpat.errors import messages
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from rest.models.login_data import LoginData
@@ -23,11 +20,11 @@ router = APIRouter()
     tags=["Auth"],
     response_model_by_alias=True,
 )
-async def register(user_data: UserData, auth_service: AuthService = Depends()):
+async def register(user_data: UserData, auth_service: AuthService = Depends())->str:
     log.info(f"Register request email: {user_data.email}",  extra={"email": user_data.email})
     await auth_service.register_user(user_data)
     log.info(f"Send link on email: {user_data.email}", exc_info={"email": user_data.email})
-    return None
+    return "Регистрация прошла успешно!"
 
 
 @router.post(
