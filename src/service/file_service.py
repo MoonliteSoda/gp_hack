@@ -11,6 +11,8 @@ from service.s3 import S3
 from utils.logger import get_logger
 from utils.config import CONFIG
 
+import tempfile
+
 log = get_logger("FileService")
 
 
@@ -33,7 +35,9 @@ class FileService:
 
         s3_path = f"{project_id}/{unique_filename}"
 
-        temp_file_path = f"/tmp/{unique_filename}"
+        temp_dir = tempfile.gettempdir()
+        temp_file_path = os.path.join(temp_dir, unique_filename)
+
         with open(temp_file_path, "wb") as temp_file:
             content = await file.read()
             temp_file.write(content)
@@ -86,7 +90,8 @@ class FileService:
 
         return file_record.to_api()
 
-    async def get_project_files(self, project_id: int) -> ProjectFileListData:
+    async def get_project_files(self, project_id: int, filename: Optional[str] = None,
+                                status: Optional[str] = None, page: int = 1, size: int = 20, to_delete: bool = False) -> ProjectFileListData | list:
         log.info(f"Getting files for project {project_id}")
 
         project = await Project.get_project_by_id(project_id)
@@ -94,7 +99,19 @@ class FileService:
             log.error(f"Project {project_id} not found")
             raise HTTPException(status_code=404, detail="Project not found")
 
-        files = await ProjectFile.get_files_by_project_id(project_id)
+        files, total = await ProjectFile.get_files_by_project_id(project_id=project_id, filename=filename,
+                                                                 status=status, page=page, size=size)
+
+        if to_delete:
+            file_list = [file for file in files]
+            return file_list
 
         file_list = [file.to_api() for file in files]
-        return ProjectFileListData(files=file_list)
+
+        return ProjectFileListData(
+            items=file_list,
+            total=total,
+            page=page,
+            size=size
+        )
+

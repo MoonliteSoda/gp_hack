@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Path, Query
-from typing import List
+from typing import List, Optional
 
 from rest.models.project_file import ProjectFileData, ProjectFileListData
 from service.file_service import FileService
@@ -23,11 +23,24 @@ async def upload_file(
 @router.get("", response_model=ProjectFileListData)
 async def get_project_files(
     project_id: int = Path(..., description="Project ID"),
+    filename: Optional[str] = Query(None, description="Фильтр по имени файла"),
+    status: Optional[str] = Query(None, description="Фильтр по статусу файла", enum=["open", "close"]),
+    page: int = Query(1, ge=1, description="Номер страницы"),
+    size: int = Query(20, ge=1, le=100, description="Количество элементов на странице"),
     service: FileService = Depends()
-):
-    log.info(f"Received request to get all files for project {project_id}")
-    result = await service.get_project_files(project_id)
-    log.info(f"Retrieved {len(result.files)} files for project {project_id}")
+) -> ProjectFileListData:
+    """
+        Получить список файлов с возможностью фильтрации по имени и статусе
+    """
+    log.info(f"Getting files for project {project_id}, filters: filename={filename}, status={status}, page={page}, size={size}")
+    result = await service.get_project_files(
+        project_id=project_id,
+        filename=filename,
+        status=status,
+        page=page,
+        size=size
+    )
+    log.info(f"Retrieved {len(result.items)} files for project {project_id}")
     return result
 
 @router.get("/{file_id}", response_model=ProjectFileData)

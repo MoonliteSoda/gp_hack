@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, select, delete
 from sqlalchemy.orm import relationship
-from typing import List, Optional
+from sqlalchemy.sql import func
+from typing import List, Optional, Tuple
 
 from dao.base import Base, with_async_db_session, session_factory
 from rest.models.project_file import ProjectFileData, ProjectFileListData
@@ -51,11 +52,27 @@ class ProjectFile(Base):
 
     @staticmethod
     @with_async_db_session
-    async def get_files_by_project_id(project_id: int) -> List["ProjectFile"]:
+    async def get_files_by_project_id(project_id: int, filename: Optional[str] = None, status: Optional[str] = None,
+                                      page: int = 1, size: int = 20) -> Tuple[List["ProjectFile"], int]:
         session = session_factory.get_async()
         query = select(ProjectFile).where(ProjectFile.project_id == project_id)
-        result = await session.execute(query)
-        return result.scalars().all()
+        # Здесь должен быть фильтр по статусу
+
+        # Фильтр по имени
+        if filename:
+            query = query.where(ProjectFile.filename.ilike(f"%{filename}%"))
+
+        # Получаем общее количество (с учетом фильтров)
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await session.scalar(count_query)
+        # Применяем пагинацию
+        offset = (page - 1) * size
+        paginated_query = query.order_by(ProjectFile.id).offset(offset).limit(size)
+        # Выполняем запрос
+        result = await session.execute(paginated_query)
+        projects = result.scalars().all()
+
+        return projects, total
 
     @staticmethod
     @with_async_db_session

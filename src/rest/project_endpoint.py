@@ -7,6 +7,8 @@ from rest.models.project import ProjectData, ProjectListData, CreateProjectData
 
 from datetime import datetime
 
+from src.service.file_service import FileService
+
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 log = get_logger("project_endpoint")
 
@@ -52,9 +54,12 @@ async def get_project(project_id: int, service: ProjectService = Depends()) -> P
 
 
 @router.delete("/{project_id}")
-async def delete_project(project_id: int, service: ProjectService = Depends()):
-    log.info(f"Deleting project with id: {project_id}")
-    await service.delete_project(project_id)
+async def delete_project(project_id: int, p_service: ProjectService = Depends(), f_service: FileService = Depends()):
+    log.info(f"Deleting project and s3 folder with id: {project_id}")
+    files = await f_service.get_project_files(project_id, to_delete=True)
+    for file in files:
+            await f_service.delete_file(file.id)
+    await p_service.delete_project(project_id)
     log.info(f"Project {project_id} deleted")
     return {"status": "success"}
 
