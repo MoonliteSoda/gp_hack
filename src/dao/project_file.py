@@ -15,6 +15,8 @@ class ProjectFile(Base):
     filename = Column(String, nullable=False)
     s3_path = Column(String, nullable=False)
     s3_url = Column(String, nullable=False)
+    s3_icon_path = Column(String, nullable=False)
+    s3_icon_url = Column(String, nullable=False)
 
     project = relationship("Project", back_populates="files")
 
@@ -24,18 +26,23 @@ class ProjectFile(Base):
             project_id=self.project_id,
             filename=self.filename,
             s3_path=self.s3_path,
-            s3_url=self.s3_url
+            s3_url=self.s3_url,
+            s3_icon_path=self.s3_icon_path,
+            s3_icon_url=self.s3_icon_url
         )
 
     @staticmethod
     @with_async_db_session
-    async def create_file(project_id: int, filename: str, s3_path: str, s3_url: str) -> "ProjectFile":
+    async def create_file(project_id: int, filename: str, s3_path: str, s3_url: str, s3_icon_path: str,
+                          s3_icon_url: str) -> "ProjectFile":
         session = session_factory.get_async()
         project_file = ProjectFile(
             project_id=project_id,
             filename=filename,
             s3_path=s3_path,
-            s3_url=s3_url
+            s3_url=s3_url,
+            s3_icon_path=s3_icon_path,
+            s3_icon_url=s3_icon_url
         )
         session.add(project_file)
         await session.commit()

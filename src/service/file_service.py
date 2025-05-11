@@ -54,7 +54,9 @@ class FileService:
                 project_id=project_id,
                 filename=file.filename,
                 s3_path=s3_path,
-                s3_url=s3_url
+                s3_url=s3_url,
+                s3_icon_path=s3_icon_path,
+                s3_icon_url=s3_icon_url
             )
             os.remove(temp_file_path)
 
@@ -78,6 +80,7 @@ class FileService:
 
         try:
             self.s3.delete(file_record.s3_path)
+            self.s3.delete(file_record.s3_icon_path)
 
             await ProjectFile.delete_file_by_id(file_id)
 

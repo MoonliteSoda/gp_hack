@@ -25,7 +25,9 @@ CREATE TABLE project_files (
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     filename VARCHAR NOT NULL,
     s3_path VARCHAR NOT NULL,
-    s3_url VARCHAR NOT NULL
+    s3_url VARCHAR NOT NULL,
+    s3_icon_path VARCHAR NOT NULL,
+    s3_icon_url VARCHAR NOT NULL
 );
 
 CREATE INDEX idx_project_files_project_id ON project_files(project_id);
