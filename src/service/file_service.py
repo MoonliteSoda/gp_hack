@@ -8,6 +8,7 @@ from dao.project_file import ProjectFile
 from dao.project import Project
 from rest.models.project_file import ProjectFileData, ProjectFileListData
 from service.s3 import S3
+from service.image_service import create_icon
 from utils.logger import get_logger
 from utils.config import CONFIG
 
@@ -34,6 +35,7 @@ class FileService:
 
 
         s3_path = f"{project_id}/{unique_filename}"
+        s3_icon_path = f"{project_id}/icon_{unique_filename}"
 
         temp_dir = tempfile.gettempdir()
         temp_file_path = os.path.join(temp_dir, unique_filename)
@@ -42,8 +44,11 @@ class FileService:
             content = await file.read()
             temp_file.write(content)
 
+        icon_temp_path = await create_icon(temp_dir, unique_filename)
+
         try:
             s3_url = self.s3.upload_file(temp_file_path, s3_path)
+            s3_icon_url = self.s3.upload_file(icon_temp_path, s3_icon_path)
 
             project_file = await ProjectFile.create_file(
                 project_id=project_id,
@@ -54,6 +59,7 @@ class FileService:
             os.remove(temp_file_path)
 
             log.info(f"File uploaded successfully: {s3_url}")
+
             return project_file.to_api()
 
         except Exception as e:
