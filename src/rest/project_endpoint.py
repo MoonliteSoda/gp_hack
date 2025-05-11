@@ -5,6 +5,8 @@ from utils.logger import get_logger
 from service.project_service import ProjectService
 from rest.models.project import ProjectData, ProjectListData, CreateProjectData
 
+from datetime import datetime
+
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 log = get_logger("project_endpoint")
 
@@ -18,14 +20,26 @@ async def create_project(create_project_data: CreateProjectData, service: Projec
 
 
 @router.get("", response_model=ProjectListData)
-async def get_all_projects(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    service: ProjectService = Depends(),
+async def search_projects(
+    name: Optional[str] = Query(None, description="Фильтр по названию проекта"),
+    start_date: Optional[datetime] = Query(None, description="Дата начала периода (включительно)"),
+    end_date: Optional[datetime] = Query(None, description="Дата окончания периода (включительно)"),
+    page: int = Query(1, ge=1, description="Номер страницы"),
+    size: int = Query(20, ge=1, le=100, description="Количество элементов на странице"),
+    service: ProjectService = Depends()
 ) -> ProjectListData:
-    log.info(f"Getting all projects, page: {page}, size: {size}")
-    result = await service.get_all_projects(page, size)
-    log.info(f"Found {result.total} projects")
+    """
+        Получить список проектов с возможностью фильтрации по имени и дате
+    """
+    log.info(f"Searching projects: name={name}, date_range={start_date}-{end_date}, page={page}, size={size}")
+    result = await service.search_projects(
+        name=name,
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+        size=size
+    )
+    log.info(f"Found {result.total} matching projects")
     return result
 
 
