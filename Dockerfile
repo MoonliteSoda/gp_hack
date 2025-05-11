@@ -9,7 +9,7 @@ ARG GID=1230
 WORKDIR /app
 
 RUN pip install uv
-COPY pyproject.toml uv.lock ./
+COPY ../pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
 COPY src .

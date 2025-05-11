@@ -41,4 +41,3 @@ logging:
     openai: WARN
     uvicorn.access: WARN
     VastController: DEBUG
-

@@ -133,15 +133,14 @@ def with_async_db_session(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def next_id_from_sequence(sequence_name: str) -> int:
-    session = session_factory.get()
-    result = session.execute(text(f"SELECT nextval('{sequence_name}')"))
-    if result is None:
-        raise Exception()
+async def next_id_from_sequence_async(sequence_name: str) -> int:
+    session = session_factory.get_async()
+    result = await session.execute(text(f"SELECT nextval('{sequence_name}')"))
     res = result.first()
     if res is None:
-        raise Exception()
+        raise Exception(f"Failed to fetch nextval from sequence {sequence_name}")
     return int(res[0])
+
 
 
 def required(val: T | None, field_name: str) -> T:
