@@ -361,6 +361,15 @@ wheels = [
 ]
 
 [[package]]
+name = "kafka-python"
+version = "2.2.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/e1/e84f846614195c01c9e98db6e58bd18eaa7baaa01e78d95b0522d03e8c66/kafka_python-2.2.6.tar.gz", hash = "sha256:b18a15e614864afedd514cc75f203cc3555bb85b915326c9fce0e49a80ca441f", size = 345160, upload-time = "2025-05-08T20:08:29.507Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/f4/fb2f88fa3ee67328f69c08e8e45591a5afb39c6d32b5e69f484a41d94a2d/kafka_python-2.2.6-py2.py3-none-any.whl", hash = "sha256:bacc5b00ddcfd79a33d761553dbf3e262389865432b51310e12399fac66f3c99", size = 308239, upload-time = "2025-05-08T20:08:19.947Z" },
+]
+
+[[package]]
 name = "lxml"
 version = "5.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -772,6 +781,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "graypy" },
     { name = "jinja2" },
+    { name = "kafka-python" },
     { name = "passlib" },
     { name = "pillow" },
     { name = "prometheus-client" },
@@ -805,6 +815,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115.12" },
     { name = "graypy", specifier = ">=2.1.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "kafka-python", specifier = ">=2.2.6" },
     { name = "passlib", specifier = "==1.7.4" },
     { name = "pillow", specifier = ">=11.2.1,<12.0.0" },
     { name = "prometheus-client", specifier = ">=0.21.1" },
