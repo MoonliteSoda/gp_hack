@@ -7,7 +7,7 @@ from rest.models.project import ProjectData, ProjectListData, CreateProjectData
 
 from datetime import datetime
 
-from src.service.file_service import FileService
+from service.file_service import FileService
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 log = get_logger("project_endpoint")
