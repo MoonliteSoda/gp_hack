@@ -7,6 +7,7 @@ dependencies = [
     "graypy>=2.1.0",
     "jinja2>=3.1.6",
     "boto3>=1.37.18",
+    "kafka-python>=2.2.6",
     "prometheus-client>=0.21.1",
     "pyyaml>=6.0.2",
     "uvicorn>=0.34.0",
