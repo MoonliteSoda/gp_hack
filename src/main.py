@@ -7,6 +7,7 @@ import time
 import uvicorn
 import psycopg2
 import yoyo
+from starlette.middleware.cors import CORSMiddleware
 
 from rest import router_init
 from utils.config import CONFIG
@@ -19,6 +20,7 @@ log = get_logger("Main")
 class Main:
     def __init__(self):
         self.app = router_init.app
+        self.__create_services()
         self.shutdown_event = GLOBAL_SHUTDOWN_EVENT
         self.uvicorn_start_thread: threading.Thread | None = None
         self.asyncio_thread: threading.Thread | None = None
@@ -26,6 +28,13 @@ class Main:
         self.event_loop: AbstractEventLoop | None = None
 
     def __create_services(self):
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
         # self.app.dependency_overrides[AuthService] = lambda: TestAuth() # TODO сделать по красоте, а вообще тут можно менять базовое поведение
         ...
 

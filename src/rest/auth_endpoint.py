@@ -46,7 +46,7 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
         return LoginResponse(message="Неверный email или пароль")
     except Exception as e:
         log.error(f"Ошибка авторизации {login_data.email}, error: {str(e)}")
-        return LoginResponse(message="Произошла ошибка авторизации")
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get(
