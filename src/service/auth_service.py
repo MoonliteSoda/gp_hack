@@ -1,11 +1,15 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Callable, Any, Optional
+from functools import wraps
 
+from sqlalchemy import select
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
+from fastapi import HTTPException, Request, Response, status, Depends
+from fastapi.responses import RedirectResponse
 
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
@@ -14,6 +18,7 @@ from rest.models.login_response import LoginResponse
 from dao.account import Account, AccountStatus
 from dao.base import session_factory, with_async_db_session
 from utils.logger import get_logger
+
 
 
 log = get_logger("AuthService")
@@ -135,6 +140,53 @@ class AuthService:
         log.debug(f"Account lookup for email {email}: {'found' if account else 'not found'}")
         return account
 
+    @with_async_db_session
+    async def get_user_from_token(self, token: str = Depends(oauth2_scheme)) -> Account:
+        """Проверяет токен и возвращает связанного пользователя из базы данных."""
+        token_data = self.verify_token(token)
+        if token_data is None:
+            log.warning("Invalid or expired token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+
+        # Используем _get_account_by_email для поиска пользователя
+        user = await self._get_account_by_email(token_data.email)
+        if user is None:
+            log.warning(f"User not found for email: {token_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        if not user.is_active:
+            log.warning(f"Inactive account: {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive"
+            )
+
+        return user
+
+
+    def require_api_auth(self, required_role: Optional[str] = None) -> Callable:
+        """Декоратор для защиты API эндпоинтов."""
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(func)
+            async def wrapper(*args, current_user: Account = Depends(self.get_user_from_token), **kwargs):
+                if required_role and current_user.role != required_role:
+                    log.warning(f"Access denied for user {current_user.email}: required role {required_role}")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Required role: {required_role}"
+                    )
+                log.info(f"User authenticated: {current_user.email}, role: {current_user.role}")
+                return await func(*args, current_user=current_user, **kwargs)
+            return wrapper
+        return decorator
+
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """Создает JWT токен доступа.
 
@@ -213,3 +265,35 @@ class AuthService:
             bool: True если пароль верный, False в противном случае
         """
         return pwd_context.verify(plain_password, hashed_password)
+
+
+    def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
+        """
+        Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
+        Если токен отсутствует или невалиден, перенаправляет на указанный URL.
+        Если токен валиден, передаёт объект пользователя в эндпоинт как current_user.
+        """
+
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(func)
+            @with_async_db_session
+            async def wrapper(request: Request, response: Response, *args, **kwargs):
+                # Извлекаем токен из куки
+                token = request.cookies.get(cookie_name)
+
+                if not token:
+                    # Перенаправляем на страницу регистрации
+                    return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+                try:
+                    # Проверяем токен и получаем пользователя
+                    current_user = await self.get_user_from_token(token)
+                    # Передаём пользователя в функцию эндпоинта
+                    return await func(request, response, *args, current_user=current_user, **kwargs)
+                except HTTPException:
+                    # Перенаправляем на страницу регистрации при невалидном токене
+                    return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+            return wrapper
+
+        return decorator

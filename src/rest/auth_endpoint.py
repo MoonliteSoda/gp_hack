@@ -7,9 +7,11 @@ from service.auth_service import AuthService
 from utils.logger import get_logger
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
-
+from dao.account import Account
 log = get_logger("AuthEndpoint")
 router = APIRouter()
+
+auth_service = AuthService()
 
 
 @router.post(
@@ -57,7 +59,13 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
     tags=["Auth"],
     response_model_by_alias=True,
 )
-async def get_current_user(current_user: UserData = Depends()) -> UserResponseData:
-    pass
-    # log.info(f"Get current user request for {current_user.email}")
-    # return UserResponseData(email=current_user.email, name=current_user.name)
+@auth_service.require_api_auth()
+async def get_current_user(current_user=Depends(auth_service.get_user_from_token)) -> UserResponseData:
+    """Возвращает данные текущего пользователя."""
+    return UserResponseData(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        role=current_user.role
+    )
+

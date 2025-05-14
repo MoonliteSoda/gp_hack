@@ -1,5 +1,7 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class TokenData(BaseModel):
-    access_token: str
+    email: str
+    access_token: Optional[str] = None

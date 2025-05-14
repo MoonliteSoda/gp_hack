@@ -82,6 +82,13 @@ class Config:
     panda: PandaConfig
     db: ConfigDB
 
+@dataclass
+class AuthConfig:
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+
 
 class ConfigLoader:
     def __init__(self):
