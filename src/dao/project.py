@@ -41,17 +41,27 @@ class Project(Base):
 
     @staticmethod
     @with_async_db_session
-    async def get_all_projects(page: int, size: int) -> Tuple[List["Project"], int]:
+    async def search_projects(name: Optional[str] = None, start_date: Optional[datetime] = None,
+                              end_date: Optional[datetime] = None, page: int = 1, size: int = 20) -> Tuple[List["Project"], int]:
         session = session_factory.get_async()
-
-        # Get total count
-        count_query = select(func.count()).select_from(Project)
+        # Базовый запрос
+        query = select(Project)
+        # Добавляем фильтр по названию если указан
+        if name:
+            query = query.where(Project.name.ilike(f"%{name}%"))
+        # Фильтр по дате создания
+        if start_date:
+            query = query.where(Project.created_at >= start_date)
+        if end_date:
+            query = query.where(Project.created_at <= end_date)
+        # Получаем общее количество (с учетом фильтров)
+        count_query = select(func.count()).select_from(query.subquery())
         total = await session.scalar(count_query)
-
-        # Get paginated results
+        # Применяем пагинацию
         offset = (page - 1) * size
-        query = select(Project).order_by(Project.id).offset(offset).limit(size)
-        result = await session.execute(query)
+        paginated_query = query.order_by(Project.created_at.desc(), Project.id).offset(offset).limit(size)
+        # Выполняем запрос
+        result = await session.execute(paginated_query)
         projects = result.scalars().all()
 
         return projects, total

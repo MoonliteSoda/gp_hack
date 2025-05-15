@@ -8,8 +8,11 @@ from dao.project_file import ProjectFile
 from dao.project import Project
 from rest.models.project_file import ProjectFileData, ProjectFileListData
 from service.s3 import S3
+from service.image_service import create_icon
 from utils.logger import get_logger
 from utils.config import CONFIG
+
+import tempfile
 
 log = get_logger("FileService")
 
@@ -32,24 +35,33 @@ class FileService:
 
 
         s3_path = f"{project_id}/{unique_filename}"
+        s3_icon_path = f"{project_id}/icon_{unique_filename}"
 
-        temp_file_path = f"/tmp/{unique_filename}"
+        temp_dir = tempfile.gettempdir()
+        temp_file_path = os.path.join(temp_dir, unique_filename)
+
         with open(temp_file_path, "wb") as temp_file:
             content = await file.read()
             temp_file.write(content)
 
+        icon_temp_path = await create_icon(temp_dir, unique_filename)
+
         try:
             s3_url = self.s3.upload_file(temp_file_path, s3_path)
+            s3_icon_url = self.s3.upload_file(icon_temp_path, s3_icon_path)
 
             project_file = await ProjectFile.create_file(
                 project_id=project_id,
                 filename=file.filename,
                 s3_path=s3_path,
-                s3_url=s3_url
+                s3_url=s3_url,
+                s3_icon_path=s3_icon_path,
+                s3_icon_url=s3_icon_url
             )
             os.remove(temp_file_path)
 
             log.info(f"File uploaded successfully: {s3_url}")
+
             return project_file.to_api()
 
         except Exception as e:
@@ -68,6 +80,7 @@ class FileService:
 
         try:
             self.s3.delete(file_record.s3_path)
+            self.s3.delete(file_record.s3_icon_path)
 
             await ProjectFile.delete_file_by_id(file_id)
 
@@ -86,7 +99,8 @@ class FileService:
 
         return file_record.to_api()
 
-    async def get_project_files(self, project_id: int) -> ProjectFileListData:
+    async def get_project_files(self, project_id: int, filename: Optional[str] = None,
+                                status: Optional[str] = None, page: int = 1, size: int = 20, to_delete: bool = False) -> ProjectFileListData | list:
         log.info(f"Getting files for project {project_id}")
 
         project = await Project.get_project_by_id(project_id)
@@ -94,7 +108,19 @@ class FileService:
             log.error(f"Project {project_id} not found")
             raise HTTPException(status_code=404, detail="Project not found")
 
-        files = await ProjectFile.get_files_by_project_id(project_id)
+        files, total = await ProjectFile.get_files_by_project_id(project_id=project_id, filename=filename,
+                                                                 status=status, page=page, size=size)
+
+        if to_delete:
+            file_list = [file for file in files]
+            return file_list
 
         file_list = [file.to_api() for file in files]
-        return ProjectFileListData(files=file_list)
+
+        return ProjectFileListData(
+            items=file_list,
+            total=total,
+            page=page,
+            size=size
+        )
+

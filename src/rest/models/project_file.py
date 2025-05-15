@@ -14,6 +14,8 @@ class ProjectFileData(BaseModel):
     filename: str
     s3_path: str
     s3_url: str
+    s3_icon_path: str
+    s3_icon_url: str
 
 
 class ProjectFileListData(BaseModel):

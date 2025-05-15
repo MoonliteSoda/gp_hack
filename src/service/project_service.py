@@ -5,6 +5,8 @@ from dao.project import Project
 from rest.models.project import ProjectData, ProjectListData, CreateProjectData, ProjectStatusType
 from utils.logger import get_logger
 
+from datetime import datetime
+
 log = get_logger("ProjectService")
 
 class ProjectService:
@@ -16,13 +18,15 @@ class ProjectService:
         return project.to_api()
 
     @with_async_db_session
-    async def get_all_projects(self, page: int, size: int) -> ProjectListData:
-        log.info(f"Getting all projects, page: {page}, size: {size}")
-        
-        projects, total = await Project.get_all_projects(page, size)
-        
+    async def search_projects(self, name: Optional[str] = None, start_date: Optional[datetime] = None,
+                              end_date: Optional[datetime] = None, page: int = 1, size: int = 20) -> ProjectListData:
+        log.info(f"Getting projects, filters: name={name}, date_range={start_date}-{end_date}")
+
+        projects, total = await Project.search_projects(name=name, start_date=start_date,
+                                                        end_date=end_date, page=page, size=size)
+
         items = [project.to_api() for project in projects]
-        
+
         return ProjectListData(
             items=items,
             total=total,
