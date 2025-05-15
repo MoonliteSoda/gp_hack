@@ -114,6 +114,6 @@ class S3:
     def upload_file(self, local_file, s3_file) -> str:
         try:
             self.s3_client.upload_file(local_file, self.s3_config.bucket, s3_file)
-            return f"Успешно загружен: {s3_file}"
+            return f"{self.s3_config.url}/{self.s3_config.bucket}/{s3_file}"
         except Exception as e:
             return f"Ошибка при загрузке {s3_file}: {str(e)}"

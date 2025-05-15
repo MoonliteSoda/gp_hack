@@ -37,16 +37,8 @@ async def register(user_data: UserData, auth_service: AuthService = Depends())->
 )
 async def login(login_data: LoginData, auth_service: AuthService = Depends()) -> LoginResponse | str:
     log.info(f"Login attempt for email: {login_data.email}")
-    try:
-        response = await auth_service.authenticate_user(login_data)
-        if response:
-            log.info(f"Успешная авторизация: {login_data.email}")
-            return response
-        log.warning(f"Ошибка при сравнении: {login_data.email}")
-        return LoginResponse(message="Неверный email или пароль")
-    except Exception as e:
-        log.error(f"Ошибка авторизации {login_data.email}, error: {str(e)}")
-        raise HTTPException(status_code=404, detail=str(e))
+    response = await auth_service.authenticate_user(login_data)
+    return response
 
 
 @router.get(
@@ -57,7 +49,7 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
     tags=["Auth"],
     response_model_by_alias=True,
 )
-async def get_current_user(current_user: UserData = Depends()) -> UserResponseData:
+async def get_current_user() -> UserResponseData:
     pass
     # log.info(f"Get current user request for {current_user.email}")
     # return UserResponseData(email=current_user.email, name=current_user.name)

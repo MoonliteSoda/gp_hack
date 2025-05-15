@@ -64,7 +64,7 @@ async def delete_project(project_id: int, p_service: ProjectService = Depends(),
     return {"status": "success"}
 
 
-@router.put("/{project_id}/name", response_model=ProjectData)
+@router.put("/{project_id}", response_model=ProjectData)
 async def update_project_name(
     project_id: int, project_data: CreateProjectData, service: ProjectService = Depends()
 ) -> ProjectData:
