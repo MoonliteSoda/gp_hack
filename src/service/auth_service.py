@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
+from starlette import status
 
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
@@ -87,9 +89,9 @@ class AuthService:
         """
         account = await self._get_account_by_email(login.email)
         if not account:
-            return None
+            raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED, detail = "Неверный пароль или логин")
         if not self._verify_password(login.password, account.password_hash):
-            return None
+            raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED, detail = "Неверный пароль или логин")
         token = self.create_access_token({"sub": account.email})
         return LoginResponse(
             message="Успешная авторизация",
