@@ -25,7 +25,7 @@ async def register(user_data: UserData, auth_service: AuthService = Depends())->
     log.info(f"Register request email: {user_data.email}",  extra={"email": user_data.email})
     await auth_service.register_user(user_data)
     log.info(f"Send link on email: {user_data.email}", exc_info={"email": user_data.email})
-    return "Регистрация прошла успешно!"
+
 
 
 @router.post(
