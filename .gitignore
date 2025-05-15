@@ -30,3 +30,5 @@ recordings
 #/src/grpc_/api
 .aider*
 .env.aider
+
+/poetry.lock

@@ -1,10 +1,10 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, select, delete
+from sqlalchemy import Column, Integer, String, ForeignKey, select, delete, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from typing import List, Optional, Tuple
 
 from dao.base import Base, with_async_db_session, session_factory
-from rest.models.project_file import ProjectFileData, ProjectFileListData
+from rest.models.project_file import ProjectFileData, ProjectFileListData, ProjectFileStatusType
 
 
 class ProjectFile(Base):
@@ -17,6 +17,9 @@ class ProjectFile(Base):
     s3_url = Column(String, nullable=False)
     s3_icon_path = Column(String, nullable=False)
     s3_icon_url = Column(String, nullable=False)
+    s3_txt_path = Column(String, nullable=False)
+    s3_txt_url = Column(String, nullable=False)
+    status = Column(Enum(ProjectFileStatusType, name="file_status_type"), nullable=False, default=ProjectFileStatusType.processing)
 
     project = relationship("Project", back_populates="files")
 
@@ -28,13 +31,16 @@ class ProjectFile(Base):
             s3_path=self.s3_path,
             s3_url=self.s3_url,
             s3_icon_path=self.s3_icon_path,
-            s3_icon_url=self.s3_icon_url
+            s3_icon_url=self.s3_icon_url,
+            s3_txt_path=self.s3_txt_path,
+            s3_txt_url=self.s3_txt_url,
+            status=self.status
         )
 
     @staticmethod
     @with_async_db_session
     async def create_file(project_id: int, filename: str, s3_path: str, s3_url: str, s3_icon_path: str,
-                          s3_icon_url: str) -> "ProjectFile":
+                          s3_icon_url: str, s3_txt_path: str = "", s3_txt_url: str = "") -> "ProjectFile":
         session = session_factory.get_async()
         project_file = ProjectFile(
             project_id=project_id,
@@ -42,7 +48,9 @@ class ProjectFile(Base):
             s3_path=s3_path,
             s3_url=s3_url,
             s3_icon_path=s3_icon_path,
-            s3_icon_url=s3_icon_url
+            s3_icon_url=s3_icon_url,
+            s3_txt_path=s3_txt_path,
+            s3_txt_url=s3_txt_url,
         )
         session.add(project_file)
         await session.commit()
@@ -63,8 +71,9 @@ class ProjectFile(Base):
                                       page: int = 1, size: int = 20) -> Tuple[List["ProjectFile"], int]:
         session = session_factory.get_async()
         query = select(ProjectFile).where(ProjectFile.project_id == project_id)
-        # Здесь должен быть фильтр по статусу
-
+        # Фильтр по статусу
+        if status:
+            query = query.where(ProjectFile.status == status)
         # Фильтр по имени
         if filename:
             query = query.where(ProjectFile.filename.ilike(f"%{filename}%"))

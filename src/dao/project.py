@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import List, Optional, Tuple
-from sqlalchemy import Column, Integer, String, DateTime, Enum, func, select, delete, update
+from sqlalchemy import Column, Integer, String, DateTime, Enum, func, select, delete, update, event
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from dao.base import Base, with_async_db_session, session_factory
-from rest.models.project import ProjectData, ProjectStatusType
+from dao.project_file import ProjectFile
+from rest.models.project import ProjectData, ProjectStatusType, ProjectFilesStatusType
 
 class Project(Base):
     __tablename__ = "projects"
@@ -14,7 +15,9 @@ class Project(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     status = Column(Enum(ProjectStatusType, name="project_status_type"), nullable=False, default=ProjectStatusType.open)
-    
+    count_of_files = Column(Integer, nullable=False, default=0)
+    status_files = Column(Enum(ProjectFilesStatusType, name="project_files_status_type"), nullable=False, default=ProjectFilesStatusType.processing)
+
     # Relationship with ProjectFile
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")
 
@@ -23,7 +26,9 @@ class Project(Base):
             id=self.id,
             name=self.name,
             created_at=self.created_at,
-            status=self.status
+            status=self.status,
+            count_of_files=self.count_of_files,
+            status_files=self.status_files
         )
 
     @staticmethod
@@ -95,4 +100,54 @@ class Project(Base):
         # Get updated project
         query = select(Project).where(Project.id == project_id)
         result = await session.execute(query)
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    @with_async_db_session
+    async def update_project_status(project_id: int) -> Optional["Project"]:
+        session = session_factory.get_async()
+
+        # Получаем количество файлов
+        file_count = await session.scalar(
+            select(func.count())
+            .select_from(ProjectFile)
+            .where(ProjectFile.project_id == project_id)
+        )
+
+        # Получаем статистику по статусам файлов
+        status_query = await session.execute(
+            select(
+                func.count().filter(ProjectFile.status == 'error').label('error_count'),
+                func.count().filter(ProjectFile.status == 'processing').label('processing_count')
+            ).where(ProjectFile.project_id == project_id)
+        )
+
+        # Извлекаем результаты запроса
+        stats = status_query.first()
+
+        # Определяем новый статус проекта
+        if stats.error_count > 0:
+            new_status = ProjectFilesStatusType.error
+        elif stats.processing_count > 0:
+            new_status = ProjectFilesStatusType.processing
+        else:
+            new_status = ProjectFilesStatusType.success
+
+        # Обновляем проект
+        await session.execute(
+            update(Project)
+            .where(Project.id == project_id)
+            .values(
+                count_of_files=file_count,
+                status_files=new_status
+            )
+        )
+
+        # Получаем обновленный проект
+        result = await session.execute(
+            select(Project)
+            .where(Project.id == project_id)
+        )
+
+        await session.commit()
         return result.scalar_one_or_none()

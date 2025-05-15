@@ -72,3 +72,11 @@ async def update_project_name(
     result = await service.update_project_name(project_id, project_data.name)
     log.info(f"Project updated: {result}")
     return result
+
+
+@router.get("/{project_id}/status", response_model=ProjectData)
+async def update_project_status(project_id: int, service: ProjectService = Depends()) -> ProjectData:
+    log.info(f"Updating project {project_id} status")
+    result = await service.update_project_status(project_id)
+    log.info(f"Project updated: {result}")
+    return result
