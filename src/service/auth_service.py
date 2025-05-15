@@ -287,10 +287,6 @@ class AuthService:
 
 
 
-
-
-
-
     #def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
     #
     #   Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
