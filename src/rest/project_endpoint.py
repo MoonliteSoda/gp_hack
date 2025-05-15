@@ -4,9 +4,12 @@ from utils.logger import get_logger
 
 from service.project_service import ProjectService
 from rest.models.project import ProjectData, ProjectListData, CreateProjectData
+from service.auth_service import AuthService
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 log = get_logger("project_endpoint")
+
+auth_service1 = AuthService() #костыль
 
 
 @router.post("", response_model=ProjectData)
@@ -18,7 +21,9 @@ async def create_project(create_project_data: CreateProjectData, service: Projec
 
 
 @router.get("", response_model=ProjectListData)
+@auth_service1.require_api_auth()
 async def get_all_projects(
+    current_user=Depends(auth_service1.get_user_from_token),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     service: ProjectService = Depends(),

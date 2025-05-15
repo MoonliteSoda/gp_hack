@@ -8,7 +8,9 @@ from utils.logger import get_logger
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
 from dao.account import Account
+
 log = get_logger("AuthEndpoint")
+
 router = APIRouter()
 
 auth_service = AuthService()
@@ -23,9 +25,8 @@ auth_service = AuthService()
     response_model_by_alias=True,
 )
 async def register(user_data: UserData, auth_service: AuthService = Depends())->str:
-    log.info(f"Register request email: {user_data.email}",  extra={"email": user_data.email})
     await auth_service.register_user(user_data)
-    log.info(f"Send link on email: {user_data.email}", exc_info={"email": user_data.email})
+    log.info(f"Register request email: {user_data.email} finish;",  extra={"email": user_data.email})
     return "Регистрация прошла успешно!"
 
 
@@ -39,16 +40,8 @@ async def register(user_data: UserData, auth_service: AuthService = Depends())->
 )
 async def login(login_data: LoginData, auth_service: AuthService = Depends()) -> LoginResponse | str:
     log.info(f"Login attempt for email: {login_data.email}")
-    try:
-        response = await auth_service.authenticate_user(login_data)
-        if response:
-            log.info(f"Успешная авторизация: {login_data.email}")
-            return response
-        log.warning(f"Ошибка при сравнении: {login_data.email}")
-        return LoginResponse(message="Неверный email или пароль")
-    except Exception as e:
-        log.error(f"Ошибка авторизации {login_data.email}, error: {str(e)}")
-        return LoginResponse(message="Произошла ошибка авторизации")
+    response = await auth_service.authenticate_user(login_data)
+    return response
 
 
 @router.get(

@@ -70,7 +70,12 @@ class ConfigDB:
     password: str
     migrations: str
 
-
+@dataclass
+class ConfigAuth:
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
 
 @dataclass
 class Config:
@@ -81,13 +86,8 @@ class Config:
     s3: S3Config
     panda: PandaConfig
     db: ConfigDB
+    auth:ConfigAuth
 
-@dataclass
-class AuthConfig:
-    SECRET_KEY: str
-    ALGORITHM: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int
-    REFRESH_TOKEN_EXPIRE_DAYS: int
 
 
 class ConfigLoader:

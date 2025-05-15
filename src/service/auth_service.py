@@ -18,17 +18,17 @@ from rest.models.login_response import LoginResponse
 from dao.account import Account, AccountStatus
 from dao.base import session_factory, with_async_db_session
 from utils.logger import get_logger
-
+from utils.config import CONFIG
 
 
 log = get_logger("AuthService")
 
 
-#config_mini
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+#configAuth
+SECRET_KEY = CONFIG.auth.SECRET_KEY
+ALGORITHM = CONFIG.auth.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = CONFIG.auth.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = CONFIG.auth.REFRESH_TOKEN_EXPIRE_DAYS
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -40,7 +40,7 @@ class AuthService:
 
     @with_async_db_session
     async def register_user(self, user_data: UserData) -> Account:
-        """Регистрирует нового пользователя без подтверждения email.
+        """Регистрирует нового пользователя,
         Аккаунт становится активным сразу после регистрации.
 
         Args:
@@ -92,9 +92,9 @@ class AuthService:
         """
         account = await self._get_account_by_email(login.email)
         if not account:
-            return None
+            raise HTTPException(status_code = 404, message = "пользователя не существует")
         if not self._verify_password(login.password, account.password_hash):
-            return None
+            raise HTTPException(status_code = 404, message = "неверный пароль")
         token = self.create_access_token({"sub": account.email})
         return LoginResponse(
             message="Успешная авторизация",
@@ -267,12 +267,12 @@ class AuthService:
         return pwd_context.verify(plain_password, hashed_password)
 
 
-    def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
-        """
+    """def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
+        
         Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
         Если токен отсутствует или невалиден, перенаправляет на указанный URL.
         Если токен валиден, передаёт объект пользователя в эндпоинт как current_user.
-        """
+        
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(func)
@@ -296,4 +296,4 @@ class AuthService:
 
             return wrapper
 
-        return decorator
+        return decorator"""
