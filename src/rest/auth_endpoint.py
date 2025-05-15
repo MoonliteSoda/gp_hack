@@ -39,16 +39,10 @@ async def register(user_data: UserData, auth_service: AuthService = Depends())->
 )
 async def login(login_data: LoginData, auth_service: AuthService = Depends()) -> LoginResponse | str:
     log.info(f"Login attempt for email: {login_data.email}")
-    try:
-        response = await auth_service.authenticate_user(login_data)
-        if response:
-            log.info(f"Успешная авторизация: {login_data.email}")
-            return response
-        log.warning(f"Ошибка при сравнении: {login_data.email}")
-        return LoginResponse(message="Неверный email или пароль")
-    except Exception as e:
-        log.error(f"Ошибка авторизации {login_data.email}, error: {str(e)}")
-        raise HTTPException(status_code=404, detail=str(e))
+    response = await auth_service.authenticate_user(login_data)
+    log.info(f"Успешная авторизация: {login_data.email}")
+    return response
+
 
 
 @router.get(
@@ -57,9 +51,14 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
         200: {"model": UserResponseData, "description": "Successful response"},
     },
     tags=["Auth"],
-    response_model_by_alias=True,
+    response_model=UserResponseData,  # Указываем Pydantic-модель для ответа
 )
-@auth_service.require_api_auth
-async def get_current_user(current_user: UserData = Depends()) -> :
-    # log.info(f"Get current user request for {current_user.email}")
-    # return UserResponseData(email=current_user.email, name=current_user.name)
+@auth_service.require_api_auth()
+async def get_current_user(current_user=Depends(auth_service.get_user_from_token)) -> UserResponseData:
+    """Возвращает данные текущего пользователя."""
+    return UserResponseData(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        role=current_user.role
+    )

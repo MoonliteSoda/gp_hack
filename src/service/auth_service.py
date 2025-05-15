@@ -3,7 +3,7 @@ from typing import Optional, Callable, Any, Optional
 from functools import wraps
 import re
 
-from sqlalchemy import select
+from sqlalchemy import select, Boolean
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
@@ -228,43 +228,34 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
 
-    def verify_token(self, token: str) -> TokenData:
+    def verify_token(self, token: str) -> Boolean:
         """
-        Верифицирует JWT токен и возвращает данные из него.
-
+        Проверяет токен на валидность.
         Args:
             token (str): JWT токен
-
         Returns:
-            TokenData: Данные из токена (email)
-
+            Bool: True or False
         Raises:
             HTTPException: Если токен невалиден, истек или содержит некорректные данные
         """
         try:
-            payload = jwt.decode(
+            # Декодирование и проверка токена
+            jwt.decode(
                 token,
                 SECRET_KEY,
-                algorithms=[ALGORITHM],
+                algorithms=ALGORITHM,
                 options={
-                    "verify_exp": True,
-                    "require_sub": True,
-                },
+                    'verify_signature': True,
+                    'verify_exp': True,
+                    'verify_iss': False,  # Не проверяем issuer
+                    'verify_aud': False  # Не проверяем audience
+                }
             )
-            email = payload.get("sub")
-            if not email or not isinstance(email, str) or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid email format in token",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return TokenData(email=email)
+            return True
+
         except JWTError as e:
-            log.error(f"JWT verification failed: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"JWT токен неверен: {str(e)}"
-            )
+            print(f"Ошибка валидации токена: {str(e)}")
+            return False
 
     def _hash_password(self, password: str) -> str:
         """Хеширует пароль.
@@ -284,36 +275,3 @@ class AuthService:
             bool: True если пароль верный, False в противном случае
         """
         return pwd_context.verify(plain_password, hashed_password)
-
-
-
-    #def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
-    #
-    #   Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
-    #   Если токен отсутствует или невалиден, перенаправляет на указанный URL.
-    #   Если токен валиден, передаёт объект пользователя в эндпоинт как current_user.
-    #
-
-    #   def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-    #       @wraps(func)
-    #       @with_async_db_session
-    #       async def wrapper(request: Request, response: Response, *args, **kwargs):
-    #           # Извлекаем токен из куки
-    #           token = request.cookies.get(cookie_name)
-
-    #           if not token:
-    #               # Перенаправляем на страницу регистрации
-    #               return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-
-    #           try:
-    #               # Проверяем токен и получаем пользователя
-    #               current_user = await self.get_user_from_token(token)
-    #               # Передаём пользователя в функцию эндпоинта
-    #               return await func(request, response, *args, current_user=current_user, **kwargs)
-    #           except HTTPException:
-    #               # Перенаправляем на страницу регистрации при невалидном токене
-    #               return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
-
-    #       return wrapper
-
-    #   return decorator
