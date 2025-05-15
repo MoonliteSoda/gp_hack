@@ -75,3 +75,21 @@ class ProjectService:
             raise ValueError(f"Failed to update project with id {project_id}")
         
         return updated_project.to_api()
+
+    @with_async_db_session
+    async def update_project_status(self, project_id: int):
+        log.info(f"Updating project {project_id} status")
+
+        # Check if project exists
+        project = await Project.get_project_by_id(project_id)
+
+        if not project:
+            raise ValueError(f"Project with id {project_id} not found")
+
+        # Update project status
+        updated_project = await Project.update_project_status(project_id)
+
+        if not updated_project:
+            raise ValueError(f"Failed to update project with id {project_id}")
+
+        return updated_project.to_api()

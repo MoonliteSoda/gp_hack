@@ -11,12 +11,18 @@ class ProjectStatusType(str, Enum):
     open = "open"
     close = "close"
 
+class ProjectFilesStatusType(str, Enum):
+    processing = "processing"
+    success = "success"
+    error = "error"
 
 class ProjectData(BaseModel):
     id: Optional[int] = None
     name: str
     created_at: datetime = None
     status: ProjectStatusType
+    count_of_files: int
+    status_files: ProjectFilesStatusType
 
 class CreateProjectData(BaseModel):
     name: str
