@@ -13,7 +13,7 @@ db:
   migrations: ./migrations
 
 s3:
-  url: http://94.154.128.76:9000
+  url: http://94.154.128.76:9000/
   login: minio-root
   password: JustOleg1!
   bucket: user-data
