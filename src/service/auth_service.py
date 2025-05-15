@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Optional, Callable, Any, Optional
 from functools import wraps
+import re
 
 from sqlalchemy import select
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 from fastapi import HTTPException, Request, Response, status, Depends
 from fastapi.responses import RedirectResponse
@@ -41,8 +41,6 @@ class AuthService:
     @with_async_db_session
     async def register_user(self, user_data: UserData) -> Account:
         """Регистрирует нового пользователя,
-        Аккаунт становится активным сразу после регистрации.
-
         Args:
             user_data: Данные пользователя (email, password, name)
 
@@ -56,7 +54,10 @@ class AuthService:
         existing_account = await self._get_account_by_email(user_data.email)
         if existing_account:
             log.warning(f"User with email {user_data.email} already exists")
-            raise ValueError(f"User with email {user_data.email} already exists")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с таким email уже зарегистрирован"
+            )
 
         try:
             account = Account(
@@ -65,20 +66,21 @@ class AuthService:
                 email=user_data.email,
                 password_hash=self._hash_password(user_data.password)
             )
-            # Поскольку декоратор управляет сессией, мы не используем async with
-            session = session_factory.get_async_or_none()  # Получаем текущую сессию
+            session = session_factory.get_async_or_none()
             if session is None:
-                raise RuntimeError("No active session available")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Ошибка сервера"
+                )
             session.add(account)
-            await session.commit()  # Декоратор должен это обрабатывать, но оставим для совместимости
             log.info(f"User registered and activated successfully: {account.id}")
             return account
-        except IntegrityError as e:
-            log.error(f"Database error during registration: {e}")
-            raise ValueError("Registration failed due to database constraints")
         except Exception as e:
-            log.error(f"Unexpected error during registration: {e}")
-            raise
+            log.error(f"Ошибка регистрации: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Внутренняя ошибка сервера"
+            )
 
     @with_async_db_session
     async def authenticate_user(self, login: LoginData) -> Optional[LoginResponse]:
@@ -92,15 +94,34 @@ class AuthService:
         """
         account = await self._get_account_by_email(login.email)
         if not account:
-            raise HTTPException(status_code = 404, message = "пользователя не существует")
+            raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED, message = "Пользователя не существует")
         if not self._verify_password(login.password, account.password_hash):
-            raise HTTPException(status_code = 404, message = "неверный пароль")
+            raise HTTPException(status_code = status.HTTP_401_UNAUTHORIZED, message = "Неверный пароль или логин")
         token = self.create_access_token({"sub": account.email})
         return LoginResponse(
             message="Успешная авторизация",
             token=token,
             account_id=account.id
         )
+
+    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        """Создает JWT токен доступа.
+
+        Args:
+            data: Данные для включения в токен (обычно user_id)
+            expires_delta: Время жизни токена
+
+        Returns:
+            str: JWT токен
+        """
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.now() + expires_delta
+        else:
+            expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
 
     @with_async_db_session
     async def refresh_access_token(self, refresh_token: str) -> Optional[str]:
@@ -187,24 +208,6 @@ class AuthService:
             return wrapper
         return decorator
 
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Создает JWT токен доступа.
-
-        Args:
-            data: Данные для включения в токен (обычно user_id)
-            expires_delta: Время жизни токена
-
-        Returns:
-            str: JWT токен
-        """
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.now() + expires_delta
-        else:
-            expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
 
     def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """Создает JWT refresh токен.
@@ -225,30 +228,48 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
 
-    def verify_token(self, token: str) -> Optional[TokenData]:
-        """Верифицирует JWT токен и возвращает данные из него.
+    def verify_token(self, token: str) -> TokenData:
+        """
+        Верифицирует JWT токен и возвращает данные из него.
 
         Args:
-            token: JWT токен
+            token (str): JWT токен
 
         Returns:
-            Optional[TokenData]: Данные из токена или None, если токен невалиден
+            TokenData: Данные из токена (email)
+
+        Raises:
+            HTTPException: Если токен невалиден, истек или содержит некорректные данные
         """
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email: str = payload.get("sub")
-            if email is None:
-                return None
+            payload = jwt.decode(
+                token,
+                SECRET_KEY,
+                algorithms=[ALGORITHM],
+                options={
+                    "verify_exp": True,
+                    "require_sub": True,
+                },
+            )
+            email = payload.get("sub")
+            if not email or not isinstance(email, str) or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid email format in token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
             return TokenData(email=email)
-        except JWTError:
-            return None
+        except JWTError as e:
+            log.error(f"JWT verification failed: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"JWT токен неверен: {str(e)}"
+            )
 
     def _hash_password(self, password: str) -> str:
         """Хеширует пароль.
-
         Args:
             password: Пароль в чистом виде
-
         Returns:
             str: Хеш пароля
         """
@@ -256,44 +277,47 @@ class AuthService:
 
     def _verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Проверяет соответствие пароля и хеша.
-
         Args:
             plain_password: Пароль в чистом виде
             hashed_password: Хеш пароля
-
         Returns:
             bool: True если пароль верный, False в противном случае
         """
         return pwd_context.verify(plain_password, hashed_password)
 
 
-    """def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
-        
-        Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
-        Если токен отсутствует или невалиден, перенаправляет на указанный URL.
-        Если токен валиден, передаёт объект пользователя в эндпоинт как current_user.
-        
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            @wraps(func)
-            @with_async_db_session
-            async def wrapper(request: Request, response: Response, *args, **kwargs):
-                # Извлекаем токен из куки
-                token = request.cookies.get(cookie_name)
 
-                if not token:
-                    # Перенаправляем на страницу регистрации
-                    return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-                try:
-                    # Проверяем токен и получаем пользователя
-                    current_user = await self.get_user_from_token(token)
-                    # Передаём пользователя в функцию эндпоинта
-                    return await func(request, response, *args, current_user=current_user, **kwargs)
-                except HTTPException:
-                    # Перенаправляем на страницу регистрации при невалидном токене
-                    return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-            return wrapper
 
-        return decorator"""
+    #def require_auth(self,redirect_to: str = "/register", cookie_name: str = "access_token") -> Callable:
+    #
+    #   Декоратор для защиты эндпоинтов. Проверяет JWT-токен в HTTP-only куке.
+    #   Если токен отсутствует или невалиден, перенаправляет на указанный URL.
+    #   Если токен валиден, передаёт объект пользователя в эндпоинт как current_user.
+    #
+
+    #   def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    #       @wraps(func)
+    #       @with_async_db_session
+    #       async def wrapper(request: Request, response: Response, *args, **kwargs):
+    #           # Извлекаем токен из куки
+    #           token = request.cookies.get(cookie_name)
+
+    #           if not token:
+    #               # Перенаправляем на страницу регистрации
+    #               return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    #           try:
+    #               # Проверяем токен и получаем пользователя
+    #               current_user = await self.get_user_from_token(token)
+    #               # Передаём пользователя в функцию эндпоинта
+    #               return await func(request, response, *args, current_user=current_user, **kwargs)
+    #           except HTTPException:
+    #               # Перенаправляем на страницу регистрации при невалидном токене
+    #               return RedirectResponse(url=redirect_to, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    #       return wrapper
+
+    #   return decorator
