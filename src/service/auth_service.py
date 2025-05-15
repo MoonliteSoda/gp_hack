@@ -116,6 +116,21 @@ class AuthService:
         return self.create_access_token({"sub": account.email})
 
     @with_async_db_session
+    async def get_user_by_token(self, token: str) -> Optional[Account]:
+        """Получает пользователя по токену.
+
+        Args:
+            token: JWT токен
+
+        Returns:
+            Optional[Account]: Аккаунт пользователя или None, если токен невалиден
+        """
+        email = self.decode_token(token)
+        if not email:
+            return None
+        return await self._get_account_by_email(email)
+
+    @with_async_db_session
     async def _get_account_by_email(self, email: str) -> Optional[Account]:
         """Ищет аккаунт пользователя по email.
 
@@ -173,6 +188,14 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
         return encoded_jwt
 
+    def decode_token(self, token: str):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str = payload.get("sub")
+            return email
+        except JWTError:
+            return None
+
     def verify_token(self, token: str) -> Optional[TokenData]:
         """Верифицирует JWT токен и возвращает данные из него.
 
@@ -182,6 +205,9 @@ class AuthService:
         Returns:
             Optional[TokenData]: Данные из токена или None, если токен невалиден
         """
+        # TODO переписать, обосать и сжечь, этож надо в такой функции допустить столько ошибок
+        # название не соответствует содержанию verify_token максимум может вернуть True False ни чего больше
+        # Да и просто код не работает
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             email: str = payload.get("sub")

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
+from typing import Optional
 
 from rest.models.login_data import LoginData
 from rest.models.user_response_data import UserResponseData
@@ -49,7 +50,28 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
     tags=["Auth"],
     response_model_by_alias=True,
 )
-async def get_current_user() -> UserResponseData:
-    pass
-    # log.info(f"Get current user request for {current_user.email}")
-    # return UserResponseData(email=current_user.email, name=current_user.name)
+async def get_current_user(
+    authorization: Optional[str] = Header(None),
+    auth_service: AuthService = Depends()
+) -> UserResponseData:
+    if not authorization or not authorization.startswith("Bearer "):
+        log.warning("Invalid or missing authorization header")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    user = await auth_service.get_user_by_token(token)
+    
+    if not user:
+        log.warning("Invalid token or user not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    log.info(f"Get current user request for {user.email}")
+    return UserResponseData(email=user.email, name=user.name)
