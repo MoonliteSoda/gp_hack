@@ -14,6 +14,7 @@ from fastapi.responses import RedirectResponse
 from rest.models.user_data import UserData
 from rest.models.token_data import TokenData
 from rest.models.login_data import LoginData
+from rest.models.user_response_data import UserResponseData
 from rest.models.login_response import LoginResponse
 from dao.account import Account, AccountStatus
 from dao.base import session_factory, with_async_db_session
@@ -106,43 +107,33 @@ class AuthService:
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """Создает JWT токен доступа.
-
         Args:
             data: Данные для включения в токен (обычно user_id)
             expires_delta: Время жизни токена
-
         Returns:
             str: JWT токен
         """
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.now() + expires_delta
+        to_encode = data.copy()  # Создаем копию данных, чтобы не изменять оригинал
+        if expires_delta: # Устанавливаем срок действия
+            expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        to_encode.update({
+            "exp": expire,  # Время истечения
+            "iat": datetime.utcnow(),  # Время создания
+            "iss": "my-auth-server",  # Издатель токена
+        })
+        # Генерируем токен
+        encoded_jwt = jwt.encode(
+            to_encode,
+            key=SECRET_KEY,
+            algorithm=ALGORITHM
+        )
         return encoded_jwt
 
-    @with_async_db_session
-    async def refresh_access_token(self, refresh_token: str) -> Optional[str]:
-        """Обновляет access token с помощью refresh token.
-
-        Args:
-            refresh_token: Refresh токен
-
-        Returns:
-            Optional[str]: Новый access token или None, если refresh токен невалиден
-        """
-        token_data = self.verify_token(refresh_token)
-        if not token_data:
-            return None
-        account = await self._get_account_by_email(token_data.email)
-        if not account:
-            return None
-        return self.create_access_token({"sub": account.email})
 
     @with_async_db_session
-    async def _get_account_by_email(self, email: str) -> Optional[Account]:
+    async def _get_account_by_email(self, email: str) -> UserResponseData:
         """Ищет аккаунт пользователя по email.
 
         Args:
@@ -164,7 +155,7 @@ class AuthService:
     @with_async_db_session
     async def get_user_from_token(self, token: str = Depends(oauth2_scheme)) -> Account:
         """Проверяет токен и возвращает связанного пользователя из базы данных."""
-        token_data = self.verify_token(token)
+        token_data = await self.token_extraction(token)
         if token_data is None:
             log.warning("Invalid or expired token")
             raise HTTPException(
@@ -182,51 +173,46 @@ class AuthService:
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        if not user.is_active:
-            log.warning(f"Inactive account: {user.email}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account is inactive"
-            )
 
-        return user
+        return UserResponseData(
+            id = user.id,
+            email = user.email,
+            name = user.name
+        )
 
-
-    def require_api_auth(self, required_role: Optional[str] = None) -> Callable:
-        """Декоратор для защиты API эндпоинтов."""
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            @wraps(func)
-            async def wrapper(*args, current_user: Account = Depends(self.get_user_from_token), **kwargs):
-                if required_role and current_user.role != required_role:
-                    log.warning(f"Access denied for user {current_user.email}: required role {required_role}")
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Required role: {required_role}"
-                    )
-                log.info(f"User authenticated: {current_user.email}, role: {current_user.role}")
-                return await func(*args, current_user=current_user, **kwargs)
-            return wrapper
-        return decorator
-
-
-    def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Создает JWT refresh токен.
-
-        Args:
-            data: Данные для включения в токен
-            expires_delta: Время жизни токена
-
-        Returns:
-            str: JWT refresh токен
+    async def token_extraction(self,token:str)->TokenData:
         """
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.now() + expires_delta
-        else:
-            expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
+            Проверяет JWT-токен и извлекает данные.
+
+            Args:
+                token: JWT-токен в формате строки
+
+            Returns:
+                Optional[TokenData]: Объект с данными токена или None, если токен невалиден
+            """
+        try:
+            payload = jwt.decode(
+                token,
+                SECRET_KEY,
+                algorithms=[ALGORITHM],
+                options={"verify_exp": True, "verify_signature": True}
+            )
+            # Извлекаем email из поля 'sub'
+            email: str = payload.get("sub")
+            if email is None:
+                log.error("Token missing 'sub' claim")
+                return None
+            return TokenData(email=email)
+        except jwt.ExpiredSignatureError:
+            log.error("Token expired")
+            return None
+        except jwt.InvalidTokenError:
+            log.error("Invalid token")
+            return None
+        except Exception as e:
+            log.error(f"Token verification error: {str(e)}")
+            return None
+
 
     def verify_token(self, token: str) -> Boolean:
         """
@@ -239,22 +225,26 @@ class AuthService:
             HTTPException: Если токен невалиден, истек или содержит некорректные данные
         """
         try:
-            # Декодирование и проверка токена
+            # Проверяем токен (без извлечения данных)
             jwt.decode(
                 token,
                 SECRET_KEY,
-                algorithms=ALGORITHM,
+                algorithms=[ALGORITHM],
                 options={
-                    'verify_signature': True,
-                    'verify_exp': True,
-                    'verify_iss': False,  # Не проверяем issuer
-                    'verify_aud': False  # Не проверяем audience
+                    "verify_exp": True,  # Проверка срока действия
+                    "verify_signature": True  # Проверка подписи
                 }
             )
             return True
 
-        except JWTError as e:
-            print(f"Ошибка валидации токена: {str(e)}")
+        except jwt.ExpiredSignatureError:
+            log.error("Токен просрочен")
+            return False
+        except jwt.InvalidTokenError:
+            log.error("Неверный токен")
+            return False
+        except Exception as e:
+            log.error(f"Ошибка проверки: {str(e)}")
             return False
 
     def _hash_password(self, password: str) -> str:
@@ -275,3 +265,57 @@ class AuthService:
             bool: True если пароль верный, False в противном случае
         """
         return pwd_context.verify(plain_password, hashed_password)
+
+"""    def require_api_auth(self, required_role: Optional[str] = None) -> Callable:
+        Декоратор для защиты API эндпоинтов.
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            @wraps(func)
+            async def wrapper(*args, current_user: Account = Depends(self.get_user_from_token), **kwargs):
+                if required_role and current_user.role != required_role:
+                    log.warning(f"Access denied for user {current_user.email}: required role {required_role}")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Required role: {required_role}"
+                    )
+                log.info(f"User authenticated: {current_user.email}, role: {current_user.role}")
+                return await func(*args, current_user=current_user, **kwargs)
+            return wrapper
+        return decorator
+
+   
+    def create_refresh_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        Создает JWT refresh токен.
+
+        Args:
+            data: Данные для включения в токен
+            expires_delta: Время жизни токена
+
+        Returns:
+            str: JWT refresh токен
+        
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.now() + expires_delta
+        else:
+            expire = datetime.now() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
+
+       @with_async_db_session
+       async def refresh_access_token(self, refresh_token: str) -> Optional[str]:
+           Обновляет access token с помощью refresh token.
+
+           Args:
+               refresh_token: Refresh токен
+
+           Returns:
+               Optional[str]: Новый access token или None, если refresh токен невалиден
+
+           token_data = self.verify_token(refresh_token)
+           if not token_data:
+               return None
+           account = await self._get_account_by_email(token_data.email)
+           if not account:
+               return None
+           return self.create_access_token({"sub": account.email})"""

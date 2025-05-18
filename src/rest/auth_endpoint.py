@@ -53,7 +53,6 @@ async def login(login_data: LoginData, auth_service: AuthService = Depends()) ->
     tags=["Auth"],
     response_model=UserResponseData,  # Указываем Pydantic-модель для ответа
 )
-@auth_service.require_api_auth()
 async def get_current_user(current_user=Depends(auth_service.get_user_from_token)) -> UserResponseData:
     """Возвращает данные текущего пользователя."""
     return UserResponseData(
@@ -62,3 +61,15 @@ async def get_current_user(current_user=Depends(auth_service.get_user_from_token
         name=current_user.name,
         role=current_user.role
     )
+@router.get(
+    "/api/protected",
+    responses={
+        200: {"description": "Successful response"},
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"}
+    },
+    tags=["Protected"],
+)
+async def protected_endpoint(current_user: UserResponseData = Depends(auth_service.get_user_from_token)):
+    """Пример защищенного эндпоинта, доступного только авторизованным пользователям."""
+    return {"message": f"Welcome, {current_user.name}! Your email is {current_user.email}"}

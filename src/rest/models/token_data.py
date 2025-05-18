@@ -4,4 +4,3 @@ from typing import Optional
 
 class TokenData(BaseModel):
     email: str
-    access_token: Optional[str] = None
