@@ -13,18 +13,18 @@ db:
   migrations: ./migrations
 
 s3:
-  url: http://94.154.128.76:9000/
-  login: minio-root
-  password: JustOleg1!
-  bucket: user-data
+  url: 
+  login:
+  password: 
+  bucket: 
 
 panda:
   bootstrap_servers:
-    - 94.154.128.76:9001:19092
-  security_protocol: SASL_SSL
-  sasl_mechanism: SCRAM-SHA-256
-  sasl_plain_username: panda-client
-  sasl_plain_password: p9SCJD0meTUk9iiUEW2IzvxwMGN5go
+   
+  security_protocol:
+  sasl_mechanism: 
+  sasl_plain_username: 
+  sasl_plain_password: 
 
 logging:
   app_name: cc-gate
